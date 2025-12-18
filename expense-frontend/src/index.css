@@ -1,0 +1,25 @@
+@import url('https://fonts.googleapis.com/css2?family=Winky+Rough:ital,wght@0,300..900;1,300..900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Light mode variables */
+  :root {
+    --bg-main: #edeedd;
+    --bg-secondary: #4f33ed;
+    --text-main: #000000;
+    --text-secondary: #f7f8f9;
+    --text-third : #373a10;
+    --bg-auth: #2232e8;
+  }
+
+  /* Dark mode variables */
+  .dark {
+    --bg-main: #0a1421;
+    --bg-secondary: #321fb0;
+    --text-main: #f9fafb;
+    --text-secondary: #9ca3af;
+  }
+}

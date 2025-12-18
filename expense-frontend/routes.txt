@@ -1,0 +1,5 @@
+/ -> Dashboard
+/expense
+        / -> Displays all expenses 
+        /add -> Form that adds new expenses
+                Directed to /expense
