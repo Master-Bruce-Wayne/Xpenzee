@@ -2,6 +2,10 @@ import {useForm } from 'react-hook-form'
 import axios from "axios";
 import { useNavigate,Link } from "react-router-dom";
 import './style.css'
+import { toast } from 'react-toastify';
+
+import { auth, googleProvider } from "../firebase.js";
+import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 
 function Login(){
     const{
@@ -11,23 +15,28 @@ function Login(){
     } = useForm();
     const navigate = useNavigate();
 
+    // added fire-base
     const onSubmit = async (data) => {
         console.log(data);
-        console.log("Frontend check 1")
         try {
-            const response = await axios.post("http://localhost:8000/user/login", data,
-                { withCredentials: true}
-            );
-            console.log("Fromtend chdeck 2")
-            console.log("Response: ",response)
-            console.log("User Logged in:", response.data);
-            alert("Login successful!");
+            await signInWithEmailAndPassword(auth,data.email,data.password);
+            toast.success("Login successful!");
             navigate("/");
-
         } catch (error) {
-            console.log("Frontend error")
             console.error("Error during login:", error);
-            alert(error);
+            toast.error("Failed to login!");
+        }
+    }
+
+    // added fire-base
+    const handleGoogleSignIn = async() => {
+        try {
+            await signInWithPopup(auth,googleProvider);
+            toast.success("Login successful!");
+            navigate("/");
+        } catch (error) {
+            console.error("Error during login:", error);
+            toast.error("Failed to login!");
         }
     }
 
@@ -53,6 +62,10 @@ function Login(){
                     className='p-3 rounded-3xl bg-white w-80 text-black hover:bg-blue-600 hover:text-white'
                     type="submit" value='Submit' />
                 </form>
+
+                <button onClick={handleGoogleSignIn}>
+                    Sign in with Google
+                </button>
                 <p className='mx-auto w-full mt-2 text-center'>Don't have an account?{"  "} 
                     <Link to='/signup' className='hover:underline hover:text-blue-700'>SignUp</Link>
                 </p>

@@ -1,6 +1,11 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase.js";
+import { toast } from "react-toastify";
+
+
 const Sidebar = () => {
   const navigate = useNavigate();
 
@@ -11,10 +16,16 @@ const Sidebar = () => {
     };
   }, []);
 
-  const handleSignOut = () => {
-    localStorage.removeItem("token");
-    alert("Sign out successful");
-    navigate("/login");
+  // added fire-base
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      toast.success("Log out successfully!");
+      navigate("/login");
+    } catch (error) {
+      console.error("Error during sign-out:", error);
+      toast.error("Failed to log out!");
+    }
   };
 
   return (
