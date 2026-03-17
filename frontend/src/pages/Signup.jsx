@@ -3,10 +3,16 @@ import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { toast } from 'react-toastify';
 
+// firebase
 import { auth, googleProvider } from "../firebase.js";
-import { createUserWithEmailAndPassword, signInWithPopup } from "firebase/auth";
+import { createUserWithEmailAndPassword, signInWithPopup, updateProfile } from "firebase/auth";
+
+// redux
+import { useDispatch } from 'react-redux';
+import { setUser } from '../redux/userSlice.js';
 
 function SignUp(){
+    const dispatch = useDispatch();
     const{
         register,
         handleSubmit,
@@ -19,19 +25,40 @@ function SignUp(){
     const handleFormSubmit = async(data) => {
         console.log(data);
         try {
-            await createUserWithEmailAndPassword(auth,data.email,data.password);
+            const response = await createUserWithEmailAndPassword(auth,data.email,data.password);
+
+            await updateProfile(auth.currentUser, {
+                displayName: data.name,
+                photoURL: "",
+            });
+
+            dispatch(setUser({
+                fullName: response.user.displayName,
+                email: response.user.email,
+                uid: response.user.uid,
+                profileImage: response.user.photoURL,
+            }));
+
             toast.success("Registered successfully!");
             navigate("/");
         } catch (error) {
             console.error("Error during sign-up:", error);
             toast.error("Failed to register!");
         }
-    }
+    }  
 
     // added fire-base
     const handleGoogleSignIn = async() => {
         try {
-            await signInWithPopup(auth,googleProvider);
+            const response = await signInWithPopup(auth,googleProvider);
+            
+            dispatch(setUser({
+                fullName: response.user.displayName,
+                email: response.user.email,
+                uid: response.user.uid,
+                profileImage: response.user.photoURL,
+            }));
+
             toast.success("Registered successfully!");
             navigate("/");
         } catch (error) {

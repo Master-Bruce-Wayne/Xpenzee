@@ -3,10 +3,16 @@ import { useNavigate,Link } from "react-router-dom";
 import './style.css'
 import { toast } from 'react-toastify';
 
+// firebase
 import { auth, googleProvider } from "../firebase.js";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 
+// redux
+import { useDispatch } from 'react-redux';
+import { setUser } from '../redux/userSlice.js';
+
 function Login(){
+    const dispatch = useDispatch();
     const{
         register,
         handleSubmit,
@@ -18,7 +24,15 @@ function Login(){
     const onSubmit = async (data) => {
         console.log(data);
         try {
-            await signInWithEmailAndPassword(auth,data.email,data.password);
+            const response = await signInWithEmailAndPassword(auth,data.email,data.password);
+            
+            dispatch(setUser({
+                fullName: response.user.displayName,
+                email: response.user.email,
+                uid: response.user.uid,
+                profileImage: response.user.photoURL,
+            }));
+
             toast.success("Login successful!");
             navigate("/");
         } catch (error) {
@@ -30,7 +44,14 @@ function Login(){
     // added fire-base
     const handleGoogleSignIn = async() => {
         try {
-            await signInWithPopup(auth,googleProvider);
+            const response = await signInWithPopup(auth,googleProvider);
+            
+            dispatch(setUser({
+                fullName: response.user.displayName,
+                email: response.user.email,
+                uid: response.user.uid,
+                profileImage: response.user.photoURL,
+            }));
             toast.success("Login successful!");
             navigate("/");
         } catch (error) {
