@@ -5,9 +5,15 @@ import App from './App.jsx'
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+// redux
+import { Provider } from 'react-redux';
+import { store } from './redux/store.js';
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <ToastContainer />
-    <App />
+    <Provider store={store}>
+      <ToastContainer />
+      <App />
+    </Provider>
   </StrictMode>,
 )
