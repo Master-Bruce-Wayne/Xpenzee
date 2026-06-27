@@ -1,39 +1,79 @@
-import React from 'react';
+import React from "react";
+import { FiTrash2 } from "react-icons/fi";
 
-const ExpenseTable = (props) => {
+// Safely converts a Firestore Timestamp, JS Date, or ISO string → human-readable date
+function formatDate(date) {
+  if (!date) return "—";
+  // Firestore Timestamp has a .toDate() method
+  const d = typeof date?.toDate === "function" ? date.toDate() : new Date(date);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+const ExpenseTable = ({ data, onDelete }) => {
+  const total = data.reduce((acc, e) => acc + Number(e.amount), 0);
+
   return (
-    <div className="bg-white shadow-lg rounded-xl p-6 w-full mx-auto mt-6">
-    
-      <table className="min-w-full border-collapse">
-        <thead>
-          <tr className="bg-gray-100 border-2">
-            <th className="px-2 py-2 text-left text-sm font-medium text-gray-600 border-2">S No.</th>
-            <th className="px-2 py-2 text-left text-sm font-medium text-gray-600 border-2">Category</th>
-            <th className="px-2 py-2 text-left text-sm font-medium text-gray-600 border-2">Description</th>
-            <th className="px-2 py-2 text-left text-sm font-medium text-gray-600 border-2">Date</th>
-            <th className="px-2 py-2 text-left text-sm font-medium text-gray-600 v">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {props.data.map((expense, index) => {
-            return (
-              <tr className="border-2">
-                <td className="px-2 py-2 text-sm text-gray-700 border-2">{index + 1}</td>
-                <td className="px-2 py-2 text-sm text-gray-700 border-2">{expense.category}</td>
-                <td className="px-2 py-2 text-sm text-gray-700 border-2">{expense.description}</td>
-                <td className="px-2 py-2 text-sm text-gray-700 border-2">{new Date(expense.date).toLocaleDateString()}</td>
-                <td className="px-2 py-2 text-sm text-gray-700 border-2">INR {expense.amount}</td>
+    <div className="bg-gray-900 border border-gray-800 shadow-lg rounded-xl overflow-hidden w-full">
+      <div className="overflow-x-auto">
+        <table className="min-w-full">
+          <thead>
+            <tr className="bg-gray-800 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              <th className="px-4 py-3">#</th>
+              <th className="px-4 py-3">Category</th>
+              <th className="px-4 py-3">Description</th>
+              <th className="px-4 py-3">Date</th>
+              <th className="px-4 py-3">Amount</th>
+              {onDelete && <th className="px-4 py-3 text-center">Delete</th>}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-800">
+            {data.map((expense, index) => (
+              <tr
+                key={expense.id}
+                className="text-sm text-gray-300 hover:bg-gray-800/50 transition"
+              >
+                <td className="px-4 py-3 text-gray-500">{index + 1}</td>
+                <td className="px-4 py-3 font-medium text-white">{expense.category}</td>
+                <td className="px-4 py-3 text-gray-400">{expense.description || "—"}</td>
+                <td className="px-4 py-3">{formatDate(expense.date)}</td>
+                <td className="px-4 py-3 font-semibold text-indigo-400">
+                  ₹{Number(expense.amount).toLocaleString("en-IN")}
+                </td>
+                {onDelete && (
+                  <td className="px-4 py-3 text-center">
+                    <button
+                      onClick={() => onDelete(expense)}
+                      className="text-red-400 hover:text-red-300 transition p-1 rounded hover:bg-red-400/10"
+                      title="Delete expense"
+                    >
+                      <FiTrash2 className="text-base" />
+                    </button>
+                  </td>
+                )}
               </tr>
-            );
-          })}
-          <tr className="bg-gray-100 font-semibold text-black">
-            <td colSpan={4} className="px-2 py-2 text-right">Total Expenses:</td>
-            <td className="px-4 py-2">INR {props.data.reduce((acc, expense) => acc += expense.amount, 0)}</td>
-          </tr>
-        </tbody>
-      </table>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="bg-gray-800/60 text-sm font-semibold text-white">
+              <td colSpan={onDelete ? 4 : 4} className="px-4 py-3 text-right text-gray-400">
+                Total
+              </td>
+              <td className="px-4 py-3 text-indigo-300 font-bold">
+                ₹{total.toLocaleString("en-IN")}
+              </td>
+              {onDelete && <td />}
+            </tr>
+          </tfoot>
+        </table>
+      </div>
     </div>
   );
 };
 
 export default ExpenseTable;
+

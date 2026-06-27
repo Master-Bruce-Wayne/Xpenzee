@@ -1,104 +1,196 @@
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { toast } from "react-toastify";
+import {
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  updateDoc,
+  increment,
+  Timestamp,
+  serverTimestamp,
+} from "firebase/firestore";
+import { db } from "../firebase.js";
 
 const AddNew = () => {
+  const { user } = useSelector((state) => state.user);
+  const uid = user?.uid;
+  const navigate = useNavigate();
+
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm();
-  const navigate = useNavigate();
 
+  // ── Load categories from Firestore ──────────────────────────────────────────
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+
+  useEffect(() => {
+    if (!uid) return;
+    async function fetchCategories() {
+      try {
+        const snap = await getDocs(
+          collection(db, "users", uid, "categories")
+        );
+        const cats = snap.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setCategories(cats);
+      } catch (err) {
+        console.error("Failed to load categories:", err);
+        toast.error("Could not load categories.");
+      } finally {
+        setCategoriesLoading(false);
+      }
+    }
+    fetchCategories();
+  }, [uid]);
+
+  // ── Submit ──────────────────────────────────────────────────────────────────
   async function onSubmit(data) {
-    // console.log("Form data: ", data);
     try {
-      const response = await axios.post(
-        "http://localhost:8000/expense/add",
-        data,
-        { withCredentials: true }
+      const amount = Number(data.amount);
+
+      // Convert the date string from <input type="date"> to a Firestore Timestamp
+      const dateParts = data.date.split("-"); // "2024-06-27"
+      const jsDate = new Date(
+        Number(dateParts[0]),
+        Number(dateParts[1]) - 1,
+        Number(dateParts[2])
       );
-      // console.log("Response data: ", response.data);
+
+      // 1. Write the expense document
+      await addDoc(collection(db, "users", uid, "expenses"), {
+        category: data.category,
+        description: data.description || "",
+        amount,
+        date: Timestamp.fromDate(jsDate),
+        createdAt: serverTimestamp(),
+      });
+
+      // 2. Find the matching category and increment totalSpent
+      const categoriesRef = collection(db, "users", uid, "categories");
+      const q = query(categoriesRef, where("name", "==", data.category));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        await updateDoc(snap.docs[0].ref, {
+          totalSpent: increment(amount),
+        });
+      }
+
+      toast.success("Expense added!");
       navigate("/expense");
     } catch (err) {
-      console.log("Error: ", err);
-      alert(err.message);
+      console.error("AddNew error:", err);
+      toast.error("Failed to add expense. Please try again.");
     }
   }
 
   return (
-    <div className=" min-h-screen flex items-center justify-center bg-gray-900 p-6">
-      <div className="bg-gray-800 text-white p-8 rounded-lg shadow-lg w-full max-w-md">
-        <h2 className="text-2xl font-semibold mb-6 text-center">
-          Add A New Expense
-        </h2>
+    <div className="min-h-screen flex items-center justify-center bg-gray-950 p-6">
+      <div className="bg-gray-900 border border-gray-800 text-white p-8 rounded-2xl shadow-2xl w-full max-w-md">
+        <h2 className="text-2xl font-bold mb-1 text-center">Add New Expense</h2>
+        <p className="text-gray-400 text-sm text-center mb-6">
+          Record a new spending entry
+        </p>
 
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="flex flex-col space-y-4"
-        >
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col space-y-4">
+
+          {/* Category — dropdown from Firestore */}
           <div>
-            <input
-              {...register("category", { required: true })}
-              type="text"
-              placeholder="Category"
-              className="w-full p-3 bg-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Category
+            </label>
+            {categoriesLoading ? (
+              <div className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-gray-500 text-sm">
+                Loading categories…
+              </div>
+            ) : (
+              <select
+                {...register("category", { required: "Category is required" })}
+                className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              >
+                <option value="">-- Select a category --</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.name}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            )}
             {errors.category && (
-              <p className="text-red-400 text-sm mt-1">Category is required</p>
+              <p className="text-red-400 text-xs mt-1">{errors.category.message}</p>
             )}
           </div>
 
+          {/* Description */}
           <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Description <span className="text-gray-500">(optional)</span>
+            </label>
             <input
               {...register("description")}
               type="text"
-              placeholder="Description"
-              className="w-full p-3 bg-gray-700 rounded-md  focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g. Lunch at café"
+              className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
             />
-            {errors.description && (
-              <p className="text-red-400 text-sm mt-1">
-                Description is required
-              </p>
-            )}
           </div>
 
+          {/* Date */}
           <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Date
+            </label>
             <input
-              {...register("date", { required: true })}
+              {...register("date", { required: "Date is required" })}
               type="date"
-              className="w-full p-3 bg-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition [color-scheme:dark]"
             />
             {errors.date && (
-              <p className="text-red-400 text-sm mt-1">Date is required</p>
+              <p className="text-red-400 text-xs mt-1">{errors.date.message}</p>
             )}
           </div>
 
+          {/* Amount */}
           <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Amount (₹)
+            </label>
             <input
-              {...register("amount", { required: true })}
+              {...register("amount", {
+                required: "Amount is required",
+                min: { value: 1, message: "Amount must be greater than 0" },
+              })}
               type="number"
-              placeholder="Amount"
-              className="w-full p-3 bg-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="0"
+              className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
             />
             {errors.amount && (
-              <p className="text-red-400 text-sm mt-1">Amount is required</p>
+              <p className="text-red-400 text-xs mt-1">{errors.amount.message}</p>
             )}
           </div>
 
+          {/* Submit */}
           <button
             type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-md transition duration-200"
-            disabled={isSubmitting}
+            disabled={isSubmitting || categoriesLoading}
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition text-sm mt-2"
           >
-            {isSubmitting ? "Submitting..." : "Submit"}
+            {isSubmitting ? "Saving…" : "Add Expense"}
           </button>
         </form>
 
-        <p className="text-center mt-4">
-          View All Your Expenses?{" "}
-          <Link to="/expense" className="text-blue-400 hover:underline">
-            Visit
+        <p className="text-center text-gray-500 text-sm mt-6">
+          View all expenses?{" "}
+          <Link to="/expense" className="text-indigo-400 hover:text-indigo-300 font-medium transition">
+            Go to History
           </Link>
         </p>
       </div>
@@ -107,3 +199,4 @@ const AddNew = () => {
 };
 
 export default AddNew;
+
