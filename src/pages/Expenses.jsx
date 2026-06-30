@@ -1,13 +1,15 @@
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { doc, deleteDoc, updateDoc, increment, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../firebase.js";
 import { toast } from "react-toastify";
 import ExpenseTable from "../components/ExpenseTable";
 import { useExpenses } from "../hooks/useExpenses";
+import { updateCategorySpent } from "../redux/categoriesSlice.js";
 
 const Expenses = () => {
   const { user } = useSelector((state) => state.user);
   const uid = user?.uid;
+  const dispatch = useDispatch();
   const { expenses, loading, error, refresh } = useExpenses();
 
   // ── Delete an expense ───────────────────────────────────────────────────────
@@ -17,7 +19,7 @@ const Expenses = () => {
       // 1. Delete the expense document
       await deleteDoc(doc(db, "users", uid, "expenses", expense.id));
 
-      // 2. Find the matching category and decrement totalSpent
+      // 2. Find the matching category and decrement totalSpent in Firestore
       const categoriesRef = collection(db, "users", uid, "categories");
       const q = query(categoriesRef, where("name", "==", expense.category));
       const snap = await getDocs(q);
@@ -27,6 +29,9 @@ const Expenses = () => {
         });
       }
 
+      // 3. Decrement the totalSpent in Redux
+      dispatch(updateCategorySpent({ categoryName: expense.category, amount: -Number(expense.amount) }));
+
       toast.success("Expense deleted.");
       refresh(); // re-fetch the list
     } catch (err) {
@@ -34,6 +39,7 @@ const Expenses = () => {
       toast.error("Failed to delete expense.");
     }
   };
+
 
   // ── Loading ─────────────────────────────────────────────────────────────────
   if (loading) {

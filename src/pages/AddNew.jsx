@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, Link } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { toast } from "react-toastify";
 import {
   collection,
@@ -15,11 +15,14 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../firebase.js";
+import useFetchCategories from "../hooks/useFetchCategories.js";
+import { updateCategorySpent } from "../redux/categoriesSlice.js";
 
 const AddNew = () => {
   const { user } = useSelector((state) => state.user);
   const uid = user?.uid;
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const {
     register,
@@ -27,31 +30,9 @@ const AddNew = () => {
     formState: { errors, isSubmitting },
   } = useForm();
 
-  // ── Load categories from Firestore ──────────────────────────────────────────
-  const [categories, setCategories] = useState([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
-
-  useEffect(() => {
-    if (!uid) return;
-    async function fetchCategories() {
-      try {
-        const snap = await getDocs(
-          collection(db, "users", uid, "categories")
-        );
-        const cats = snap.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setCategories(cats);
-      } catch (err) {
-        console.error("Failed to load categories:", err);
-        toast.error("Could not load categories.");
-      } finally {
-        setCategoriesLoading(false);
-      }
-    }
-    fetchCategories();
-  }, [uid]);
+  // ── Load categories from Redux ──────────────────────────────────────────────
+  useFetchCategories();
+  const { categories, loading: categoriesLoading } = useSelector((state) => state.categories);
 
   // ── Submit ──────────────────────────────────────────────────────────────────
   async function onSubmit(data) {
@@ -75,7 +56,7 @@ const AddNew = () => {
         createdAt: serverTimestamp(),
       });
 
-      // 2. Find the matching category and increment totalSpent
+      // 2. Find the matching category and increment totalSpent in Firestore
       const categoriesRef = collection(db, "users", uid, "categories");
       const q = query(categoriesRef, where("name", "==", data.category));
       const snap = await getDocs(q);
@@ -84,6 +65,9 @@ const AddNew = () => {
           totalSpent: increment(amount),
         });
       }
+
+      // 3. Update the category's total spent in the Redux store
+      dispatch(updateCategorySpent({ categoryName: data.category, amount }));
 
       toast.success("Expense added!");
       navigate("/expense");

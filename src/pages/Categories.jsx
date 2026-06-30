@@ -1,18 +1,18 @@
-import { useState, useEffect, useCallback } from "react";
-import { useSelector } from "react-redux";
+import { useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import { FiTrash2, FiPlus, FiTag, FiTrendingUp } from "react-icons/fi";
 import {
   collection,
   addDoc,
-  getDocs,
   deleteDoc,
   doc,
-  query,
-  orderBy,
 } from "firebase/firestore";
 import { db } from "../firebase.js";
+import useFetchCategories from "../hooks/useFetchCategories.js";
+import { setCategories, addCategory, removeCategory } from "../redux/categoriesSlice.js";
+
 
 // Progress bar — shows totalSpent vs monthlyBudget
 function BudgetBar({ spent, budget }) {
@@ -37,12 +37,9 @@ function BudgetBar({ spent, budget }) {
 }
 
 const Categories = () => {
-  const { user } = useSelector((state) => state.user);
+  const { user } = useSelector((store) => store.user);
   const uid = user?.uid;
-
-  const [categories, setCategories] = useState([]);
-  // [{id, name, montlyBudget, totalSpent}, {}, ..]
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
   const [adding, setAdding] = useState(false); // controls add-form visibility
 
   const {
@@ -53,37 +50,13 @@ const Categories = () => {
   } = useForm();
 
   // ── Fetch categories ────────────────────────────────────────────────────────
-  const fetchCategories = useCallback(async () => {
-    if (!uid) return;
-    setLoading(true);
-    try {
-      const q = query(
-        collection(db, "users", uid, "categories"),
-        orderBy("name", "asc")
-      );
-      const snap = await getDocs(q);
-      setCategories(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    } catch (err) {
-      console.error("Fetch categories error:", err);
-      toast.error("Failed to load categories.");
-    } finally {
-      setLoading(false);
-    }
-  }, [uid]);
-
-  useEffect(() => {
-    fetchCategories();
-    // console.log("Categories: ", categories)
-  }, [fetchCategories]);
-
-  useEffect(() => {
-    console.log("Categories: ", categories)
-  }, [categories])
+  useFetchCategories();
+  const { categories, loading } = useSelector((store) => store.categories);
 
   // ── Add category ────────────────────────────────────────────────────────────
   const onAddCategory = async (data) => {
     // Prevent duplicates (case-insensitive)
-    const duplicate = categories.some(
+    const duplicate = (categories || []).some(
       (c) => c.name.toLowerCase() === data.name.trim().toLowerCase()
     );
     if (duplicate) {
@@ -92,15 +65,18 @@ const Categories = () => {
     }
 
     try {
-      await addDoc(collection(db, "users", uid, "categories"), {
+      const newCat = {
         name: data.name.trim(),
         monthlyBudget: Number(data.monthlyBudget),
         totalSpent: 0,
-      });
+      };
+      const docRef = await addDoc(collection(db, "users", uid, "categories"), newCat);
       toast.success(`Category "${data.name}" added!`);
-      reset();
+      // reset();
       setAdding(false);
-      fetchCategories();
+      dispatch(addCategory({ id: docRef.id, ...newCat }));
+      // const newCategories = [...categories, {id:docRef.id, ...newCat}];
+      // dispatch(setCategories(newCategories));
     } catch (err) {
       console.error("Add category error:", err);
       toast.error("Failed to add category.");
@@ -118,15 +94,20 @@ const Categories = () => {
     try {
       await deleteDoc(doc(db, "users", uid, "categories", cat.id));
       toast.success(`"${cat.name}" deleted.`);
-      fetchCategories();
+      dispatch(removeCategory(cat.id));
+
+      // const newCategories = categories.filter(c => c.id !== cat.id);
+      // dispatch(setCategories(categories));
     } catch (err) {
       console.error("Delete category error:", err);
       toast.error("Failed to delete category.");
     }
   };
 
+
   // ── Loading ─────────────────────────────────────────────────────────────────
   if (loading) {
+
     return (
       <div className="flex h-screen items-center justify-center bg-gray-950">
         <div className="flex flex-col items-center gap-3">
