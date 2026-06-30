@@ -41,6 +41,7 @@ const Categories = () => {
   const uid = user?.uid;
 
   const [categories, setCategories] = useState([]);
+  // [{id, name, montlyBudget, totalSpent}, {}, ..]
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false); // controls add-form visibility
 
@@ -72,7 +73,12 @@ const Categories = () => {
 
   useEffect(() => {
     fetchCategories();
+    // console.log("Categories: ", categories)
   }, [fetchCategories]);
+
+  useEffect(() => {
+    console.log("Categories: ", categories)
+  }, [categories])
 
   // ── Add category ────────────────────────────────────────────────────────────
   const onAddCategory = async (data) => {
