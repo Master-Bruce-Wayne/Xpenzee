@@ -17,6 +17,7 @@ import {
 import { db } from "../firebase.js";
 import useFetchCategories from "../hooks/useFetchCategories.js";
 import { updateCategorySpent } from "../redux/categoriesSlice.js";
+import { addExpense } from "../redux/expenseSlice.js";
 
 const AddNew = () => {
   const { user } = useSelector((state) => state.user);
@@ -47,11 +48,16 @@ const AddNew = () => {
         Number(dateParts[2])
       );
 
-      // 1. Write the expense document
-      await addDoc(collection(db, "users", uid, "expenses"), {
+      const newExpense = {
         category: data.category,
         description: data.description || "",
         amount,
+        date: jsDate.toISOString(),
+      };
+
+      // 1. Write the expense document to Firestore
+      const docRef = await addDoc(collection(db, "users", uid, "expenses"), {
+        ...newExpense,
         date: Timestamp.fromDate(jsDate),
         createdAt: serverTimestamp(),
       });
@@ -66,8 +72,9 @@ const AddNew = () => {
         });
       }
 
-      // 3. Update the category's total spent in the Redux store
+      // 3. Update local Redux stores
       dispatch(updateCategorySpent({ categoryName: data.category, amount }));
+      dispatch(addExpense({ id: docRef.id, ...newExpense }));
 
       toast.success("Expense added!");
       navigate("/expense");
@@ -76,6 +83,7 @@ const AddNew = () => {
       toast.error("Failed to add expense. Please try again.");
     }
   }
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-950 p-6">

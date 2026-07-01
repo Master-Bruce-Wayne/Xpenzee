@@ -1,11 +1,14 @@
 import { useSelector } from "react-redux";
 import ExpensePieChart from "../components/PieChart";
 import ExpenseLineChart from "../components/LineChart";
-import { useExpenses } from "../hooks/useExpenses";
+import useFetchExpenses from "../hooks/useFetchExpenses";
+import useExpensesAsCharts from "../hooks/useExpensesAsCharts";
 
 const Dashboard = () => {
   const { user } = useSelector((state) => state.user);
-  const { chartData, loading, error } = useExpenses();
+  useFetchExpenses();
+  const { chartData, loading, error } = useExpensesAsCharts();
+
 
   // ── Loading state ───────────────────────────────────────────────────────────
   if (loading) {

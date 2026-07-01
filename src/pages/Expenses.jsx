@@ -3,20 +3,24 @@ import { doc, deleteDoc, updateDoc, increment, collection, query, where, getDocs
 import { db } from "../firebase.js";
 import { toast } from "react-toastify";
 import ExpenseTable from "../components/ExpenseTable";
-import { useExpenses } from "../hooks/useExpenses";
+import useFetchExpenses from "../hooks/useFetchExpenses";
 import { updateCategorySpent } from "../redux/categoriesSlice.js";
+import { removeExpense } from "../redux/expenseSlice.js";
 
 const Expenses = () => {
   const { user } = useSelector((state) => state.user);
   const uid = user?.uid;
   const dispatch = useDispatch();
-  const { expenses, loading, error, refresh } = useExpenses();
+
+  // Load expenses using Fetch Hook and select from Redux
+  useFetchExpenses();
+  const { expenses, loading, error } = useSelector((state) => state.expenses);
 
   // ── Delete an expense ───────────────────────────────────────────────────────
   const handleDelete = async (expense) => {
     if (!window.confirm(`Delete "${expense.category}" expense of ₹${expense.amount}?`)) return;
     try {
-      // 1. Delete the expense document
+      // 1. Delete the expense document from Firestore
       await deleteDoc(doc(db, "users", uid, "expenses", expense.id));
 
       // 2. Find the matching category and decrement totalSpent in Firestore
@@ -29,15 +33,18 @@ const Expenses = () => {
         });
       }
 
-      // 3. Decrement the totalSpent in Redux
+      // 3. Decrement the totalSpent in Redux for Categories
       dispatch(updateCategorySpent({ categoryName: expense.category, amount: -Number(expense.amount) }));
 
+      // 4. Remove the expense from Redux locally
+      dispatch(removeExpense(expense.id));
+
       toast.success("Expense deleted.");
-      refresh(); // re-fetch the list
     } catch (err) {
       console.error("Delete error:", err);
       toast.error("Failed to delete expense.");
     }
+
   };
 
 
